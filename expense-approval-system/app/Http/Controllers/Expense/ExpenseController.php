@@ -6,11 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ExpenseApprovalRequest;
 use App\Http\Requests\ExpenseRequest;
 use App\Models\Approver;
-use App\Models\Expense;
 use App\Models\Status;
 use App\Services\Expense\ExpenseService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Swagger\Annotations as SWG;
 
 /**
@@ -65,14 +63,18 @@ class ExpenseController extends Controller
     public function store(ExpenseRequest $request): JsonResponse
     {
         try {
+            // Retrieve data from the request
             $data = $request->only(['amount', 'status_id', 'approver_id']);
-            $expense = $this->expenseService->createExpense($data);
 
-            if ($expense instanceof JsonResponse) {
-                return $expense;
+            // Call the service method to handle the creation and status update
+            $result = $this->expenseService->createExpenseAndUpdateApprover($data);
+
+            // Return response based on the result
+            if ($result instanceof JsonResponse) {
+                return $result;
             }
 
-            return response()->json($expense, 201);
+            return response()->json($result, 201);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'An error occurred while saving expenses',
@@ -120,18 +122,21 @@ class ExpenseController extends Controller
     public function approve(ExpenseApprovalRequest $request, $id): JsonResponse
     {
         try {
+            // Retrieve the expense
             $expense = $this->expenseService->getExpense($id);
 
             if (!$expense) {
                 return response()->json(['error' => 'Expense not found'], 404);
             }
 
+            // Check the current status and update if necessary
             if ($expense->status->name !== 'menunggu persetujuan') {
                 return response()->json([
                     'message' => 'Withdrawals are no longer in the stage of waiting for approval',
                 ], 400);
             }
 
+            // Approve the expense
             $approvedStatus = Status::where('name', 'disetujui')->firstOrFail();
             $expense->status_id = $approvedStatus->id;
             $expense->approver_id = $request->approver_id;

@@ -24,7 +24,8 @@ class ApproverRequest extends FormRequest
     public function rules()
     {
         return [
-            'name' => 'required|string|unique:approvers,name'
+            'name' => 'required|string|unique:approvers,name',
+            'status_id' => 'required|integer|exists:statuses,id',
         ];
     }
 }
